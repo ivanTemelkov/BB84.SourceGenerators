@@ -321,6 +321,145 @@ public sealed class ToStringGeneratorDriverTests
 		Assert.Contains("nameof(Name)", src);
 	}
 
+	[TestMethod]
+	public void ItFailsIfToStringIsAlreadyDefinedInAClass()
+	{
+		bool success = GenerateWithDiagnostics(@"
+	[GenerateToString()]
+	public partial class ClassWithToString { public int Id { get; set; } public string Name { get; set; } public override string ToString() => base.ToString(); }",
+	"partial class ClassWithToString",
+	out _,
+	out ImmutableArray<Diagnostic> diagnostics);
+
+		Assert.IsFalse(success);
+		Assert.HasCount(1, diagnostics);
+		Assert.AreEqual("BB84SG0041", diagnostics[0].Id);
+	}
+
+	[TestMethod]
+	public void OnlyOptInPropertiesAreIncluded()
+	{
+		string src = Generate(@"
+	[GenerateToString(OptIn = true)]
+	public partial class IncludeModel
+	{
+		[ToStringInclude]
+		public int Id { get; set; }
+		[ToStringInclude]
+		public string Name { get; set; }
+		public string Secret { get; set; }
+		public string Internal { get; set; }
+	}", "partial class IncludeModel");
+
+		Assert.Contains("nameof(Id)", src);
+		Assert.Contains("nameof(Name)", src);
+		Assert.DoesNotContain("Secret", src);
+		Assert.DoesNotContain("Internal", src);
+	}
+
+	[TestMethod]
+	public void WithOptInNoPropertiesAreIncluded()
+	{
+		string src = Generate(@"
+	[GenerateToString(OptIn = true)]
+	public partial class IncludeModel
+	{
+		public int Id { get; set; }
+		public string Description { get; set; }
+		public string Secret { get; set; }
+		public string Internal { get; set; }
+	}", "partial class IncludeModel");
+
+		Assert.DoesNotContain("Id", src);
+		Assert.DoesNotContain("Description", src);
+		Assert.DoesNotContain("Secret", src);
+		Assert.DoesNotContain("Internal", src);
+		Assert.Contains("IncludeModel { }", src);
+	}
+
+	[TestMethod]
+	public void WithOptInAndExcludedPropertiesWarningIsGenerated()
+	{
+		bool success = GenerateWithDiagnostics(@"
+	[GenerateToString(excludeProperties: ""Secret"", OptIn = true)]
+	public partial class IncludeModel
+	{
+		[ToStringInclude]
+		public int Id { get; set; }
+		public string Description { get; set; }
+		public string Secret { get; set; }
+		public string Internal { get; set; }
+	}",
+	"partial class IncludeModel",
+	out string src,
+	out ImmutableArray<Diagnostic> diagnostics);
+
+		Assert.IsTrue(success);
+		Assert.HasCount(1, diagnostics);
+		Assert.AreEqual("BB84SG0042", diagnostics[0].Id);
+		Assert.Contains("nameof(Id)", src);
+		Assert.DoesNotContain("Description", src);
+		Assert.DoesNotContain("Secret", src);
+		Assert.DoesNotContain("Internal", src);
+	}
+
+	[TestMethod]
+	public void WithOptInFalseAllPropertiesAreIncluded()
+	{
+		string src = Generate(@"
+	[GenerateToString(OptIn = false)]
+	public partial class IncludeModel
+	{
+		[ToStringInclude]
+		public int Id { get; set; }
+		[ToStringInclude]
+		public string Name { get; set; }
+		public string Secret { get; set; }
+		public string Internal { get; set; }
+	}", "partial class IncludeModel");
+
+		Assert.Contains("nameof(Id)", src);
+		Assert.Contains("nameof(Name)", src);
+		Assert.Contains("nameof(Secret)", src);
+		Assert.Contains("nameof(Internal)", src);
+	}
+
+	[TestMethod]
+	public void WithOptInFormatAttributeShouldEmitFormattedToString()
+	{
+		string src = Generate(@"
+	[GenerateToString(OptIn = true)]
+	public partial class FormatModel
+	{
+		[ToStringInclude, ToStringFormat(""X"")]
+		public int Code { get; set; }
+		public string Ignored { get; set; }
+	}", "partial class FormatModel");
+
+		Assert.Contains("Code.ToString(\"X\")", src);
+		Assert.DoesNotContain("Ignored", src);
+	}
+
+	[TestMethod]
+	public void WithOptInOrderAttributeShouldReorderProperties()
+	{
+		string src = Generate(@"
+	[GenerateToString(OptIn = true)]
+	public partial class OrderModel
+	{
+		[ToStringInclude]
+		public int First { get; set; }
+		[ToStringInclude, ToStringOrder(0)]
+	public int Second { get; set; }
+	public string Ignored { get; set; }
+	}", "partial class OrderModel");
+
+		int second = src.IndexOf("nameof(Second)", StringComparison.Ordinal);
+		int first = src.IndexOf("nameof(First)", StringComparison.Ordinal);
+		Assert.IsTrue(second >= 0 && first > second, $"Expected Second before First, got {second}/{first}");
+		Assert.DoesNotContain("Ignored", src);
+	}
+
 	private static ImmutableArray<Diagnostic> CompileGenerated(string members)
 	{
 		string source = $@"
@@ -346,6 +485,16 @@ namespace TestNamespace
 
 	private static string Generate(string members, string marker)
 	{
+		_ = GenerateWithDiagnostics(members, marker, out string generated, out ImmutableArray<Diagnostic> diagnostics);
+
+		Assert.IsEmpty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+		return generated;
+	}
+
+	private static bool GenerateWithDiagnostics(string members, string marker, out string generated, out ImmutableArray<Diagnostic> diagnostics)
+	{
+		generated = string.Empty;
 		string source = $@"
 using BB84.SourceGenerators.Attributes;
 
@@ -363,13 +512,16 @@ namespace TestNamespace
 		IIncrementalGenerator[] generators = [new AttributeSourceGenerator(), new ToStringGenerator()];
 
 		GeneratorDriver driver = CSharpGeneratorDriver.Create(generators);
-		driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out ImmutableArray<Diagnostic> diagnostics);
+		driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out diagnostics);
 
-		Assert.IsEmpty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+		if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+			return false;
 
 		GeneratorDriverRunResult runResult = driver.GetRunResult();
-		return runResult.GeneratedTrees
+		generated = runResult.GeneratedTrees
 			.Select(t => t.GetText().ToString())
 			.First(s => s.Contains(marker));
+
+		return true;
 	}
 }

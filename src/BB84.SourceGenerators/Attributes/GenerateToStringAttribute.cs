@@ -31,6 +31,8 @@ internal enum CollectionFormat
 /// Indicates that the decorated <c>class</c> or <c>struct</c> should have a <c>ToString()</c> override generated for it.
 /// The generated method returns a formatted string containing the type name and all (or selected)
 /// public property values in the format <c>TypeName { Prop1 = val1, Prop2 = val2 }</c>.
+/// Opt-in option is also available. Then only the properties marked with <see cref="ToStringIncludeAttribute"/> will be
+/// included in the <c>ToString()</c> override.
 /// </summary>
 /// <param name="excludeProperties">The property names to exclude from the generated <c>ToString()</c> output.</param>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
@@ -82,4 +84,9 @@ internal sealed class GenerateToStringAttribute(params string[] excludePropertie
 	/// Defaults to <see langword="false"/>.
 	/// </summary>
 	public bool IncludeInherited { get; set; }
+
+	/// <summary>
+	/// When true, only the Properties marked with <see cref="ToStringIncludeAttribute"/> will be printed.
+	/// </summary>
+	public bool OptIn { get; set; }
 }

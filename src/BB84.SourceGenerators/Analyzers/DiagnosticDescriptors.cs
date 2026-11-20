@@ -376,6 +376,24 @@ internal static class DiagnosticDescriptors
 		messageFormat: "Enum '{0}' used by property '{1}' could use [GenerateEnumeratorExtensions] for reflection-free parsing");
 
 	/// <summary>
+	/// Represents a diagnostic error indicating that parameterless ToString method is already present.
+	/// If the Generator creates another one it will break the build.
+	/// </summary>
+	internal static readonly DiagnosticDescriptor ExistingToStringDiagnostic = Error(
+		id: "BB84SG0041",
+		title: "ToString() is already defined",
+		messageFormat: "Type '{0}' is marked with [GenerateToString] but already declares a parameterless ToString() method");
+
+	/// <summary>
+	/// Represents a diagnostic warning indicating that both OptIn and excludeParameters are set.
+	/// In that case the OptIn wins.
+	/// </summary>
+	internal static readonly DiagnosticDescriptor BothOptInAndExcludeDiagnostic = Warning(
+		id: "BB84SG0042",
+		title: "When OptIn is true excludeProperties is ignored",
+		messageFormat: "Type '{0}' using [GenerateToString] with OptIn = true, so excludeProperties will be ignored");
+
+	/// <summary>
 	/// Creates an enabled-by-default error descriptor in the <see cref="Category"/> category.
 	/// </summary>
 	/// <param name="id">The diagnostic identifier.</param>

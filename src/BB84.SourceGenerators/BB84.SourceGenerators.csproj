@@ -51,6 +51,7 @@
 		<EmbeddedResource Include="Attributes\GenerateValidatorAttribute.cs" LogicalName="GenerateValidatorAttribute.cs" />
 		<EmbeddedResource Include="Attributes\ToStringFormatAttribute.cs" LogicalName="ToStringFormatAttribute.cs" />
 		<EmbeddedResource Include="Attributes\ToStringOrderAttribute.cs" LogicalName="ToStringOrderAttribute.cs" />
+		<EmbeddedResource Include="Attributes\ToStringIncludeAttribute.cs" LogicalName="ToStringIncludeAttribute.cs" />
 		<EmbeddedResource Include="Attributes\PropertyMappingAttribute.cs" LogicalName="PropertyMappingAttribute.cs" />
 		<EmbeddedResource Include="Attributes\NotifyCanExecuteChangedAttribute.cs" LogicalName="NotifyCanExecuteChangedAttribute.cs" />
 	</ItemGroup>

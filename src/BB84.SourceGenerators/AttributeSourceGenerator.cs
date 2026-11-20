@@ -54,6 +54,7 @@ public sealed class AttributeSourceGenerator : IIncrementalGenerator
 		"GenerateValidatorAttribute",
 		"ToStringFormatAttribute",
 		"ToStringOrderAttribute",
+		"ToStringIncludeAttribute",
 		"PropertyMappingAttribute",
 		"NotifyCanExecuteChangedAttribute",
 	];

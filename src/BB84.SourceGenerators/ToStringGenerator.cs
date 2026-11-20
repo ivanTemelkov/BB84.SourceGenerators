@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 using System.Collections.Immutable;
 
+using BB84.SourceGenerators.Analyzers;
 using BB84.SourceGenerators.Attributes;
 using BB84.SourceGenerators.Helpers;
 using BB84.SourceGenerators.Models;
@@ -33,6 +34,7 @@ public sealed class ToStringGenerator : IIncrementalGenerator
 
 	private static readonly string ToStringFormatAttributeName = typeof(ToStringFormatAttribute).FullName;
 	private static readonly string ToStringOrderAttributeName = typeof(ToStringOrderAttribute).FullName;
+	private static readonly string ToStringIncludeAttributeName = typeof(ToStringIncludeAttribute).FullName;
 
 	// Names the generated ToString/PrintMembers bodies already use, which collection locals must avoid.
 	private static readonly string[] ReservedLocalNames = ["sb", "builder", "appended", "format", "formatProvider", "nameof"];
@@ -52,8 +54,14 @@ public sealed class ToStringGenerator : IIncrementalGenerator
 		if (context.TargetNode is not TypeDeclarationSyntax typeDeclaration || context.TargetSymbol is not INamedTypeSymbol typeSymbol)
 			return null;
 
-		AttributeData attribute = context.Attributes[0];
 		bool isRecord = typeDeclaration is RecordDeclarationSyntax;
+		LocationInfo? location = LocationInfo.From(typeDeclaration.Identifier);
+		if (!isRecord && HasToStringMethod(typeSymbol))
+		{
+			return GeneratorResult<ToStringRequest>.FromDiagnostics(DiagnosticInfo.Create(DiagnosticDescriptors.ExistingToStringDiagnostic, location, typeSymbol.Name));
+		}
+
+		AttributeData attribute = context.Attributes[0];
 
 		CollectionFormat collectionFormat = GetCollectionFormat(attribute);
 		string separator = GetSeparator(attribute);
@@ -61,9 +69,17 @@ public sealed class ToStringGenerator : IIncrementalGenerator
 		string? nullPlaceholder = GetNullPlaceholder(attribute);
 		bool includeInherited = GetIncludeInherited(attribute);
 		HashSet<string> excludedProperties = AttributeHelpers.GetExcludedProperties(attribute);
-		ImmutableArray<PropertyDescriptor> properties = GeneratorHelpers.GetPropertyDescriptors(typeSymbol, excludedProperties, detectCollections: true, toStringFormatAttributeName: ToStringFormatAttributeName, toStringOrderAttributeName: ToStringOrderAttributeName, includeInherited: includeInherited);
+		bool optIn = AttributeHelpers.GetNamedArgument<bool>(attribute, nameof(GenerateToStringAttribute.OptIn), false);
+		string? includeAttributeName = optIn
+			? ToStringIncludeAttributeName
+			: null;
+		ImmutableArray<PropertyDescriptor> properties = GeneratorHelpers.GetPropertyDescriptors(typeSymbol, excludedProperties, detectCollections: true, toStringFormatAttributeName: ToStringFormatAttributeName, toStringOrderAttributeName: ToStringOrderAttributeName, toStringIncludeAttributeName: includeAttributeName, includeInherited: includeInherited);
 		bool printMembersIsOverride = isRecord
 			&& typeSymbol.BaseType is { IsRecord: true, SpecialType: not SpecialType.System_Object };
+
+		DiagnosticInfo[] diagnostics = optIn && excludedProperties.Count > 0
+			? [DiagnosticInfo.Create(DiagnosticDescriptors.BothOptInAndExcludeDiagnostic, location, typeSymbol.Name)]
+			: [];
 
 		return GeneratorResult<ToStringRequest>.FromRequest(new ToStringRequest(
 			TypeTargetInfo.Create(typeDeclaration, typeSymbol),
@@ -73,7 +89,8 @@ public sealed class ToStringGenerator : IIncrementalGenerator
 			separator,
 			formattable,
 			nullPlaceholder,
-			printMembersIsOverride));
+			printMembersIsOverride),
+			diagnostics);
 	}
 
 	private static void ExecuteClass(SourceProductionContext context, ToStringRequest request)
@@ -335,4 +352,13 @@ public sealed class ToStringGenerator : IIncrementalGenerator
 
 	private static bool GetIncludeInherited(AttributeData attribute)
 		=> AttributeHelpers.GetNamedArgument(attribute, nameof(GenerateToStringAttribute.IncludeInherited), false);
+
+	private static bool HasToStringMethod(INamedTypeSymbol typeSymbol)
+		=> typeSymbol
+				.GetMembers("ToString")
+				.OfType<IMethodSymbol>()
+				.Any(method =>
+						method.MethodKind == MethodKind.Ordinary &&
+						method.Arity == 0 &&
+						method.Parameters.Length == 0);
 }

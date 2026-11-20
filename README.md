@@ -36,7 +36,7 @@ This package provides eighteen powerful source generators:
 - **[INI File Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/ini-file.md)** - Compile-time INI file serialization and deserialization
 - **[Notification Properties Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/notification-properties.md)** - Configurable `INotifyPropertyChanged`/`INotifyPropertyChanging` implementation
 - **[Singleton Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/singleton.md)** - Thread-safe singleton pattern generation with lazy or eager initialization
-- **[ToString Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/to-string.md)** - Compile-time `ToString()` override generation
+- **[ToString Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/to-string.md)** - Compile-time `ToString()` override generation with OptIn or excludeProperties options. Property ordering and formatting is also available
 - **[Validator Generator](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/validator.md)** - Compile-time data annotation validation
 
 Each generator has its own page covering why to use it, its benefits and usage examples. See the [documentation index](https://github.com/BoBoBaSs84/BB84.SourceGenerators/blob/main/docs/README.md) for an overview.

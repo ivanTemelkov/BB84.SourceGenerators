@@ -1,6 +1,6 @@
 # ToString Generator
 
-Generates a `ToString()` override for classes, records and structs, returning a formatted string containing the type name and all (or selected) public readable property values in the format `ClassName { Prop1 = val1, Prop2 = val2 }`. Collection properties (lists, arrays, dictionaries) are rendered with configurable formatting instead of the default type name.
+Generates a `ToString()` override for classes, records and structs, returning a formatted string containing the type name and all (or selected) public readable property values in the format `ClassName { Prop1 = val1, Prop2 = val2 }`. Collection properties (lists, arrays, dictionaries) are rendered with configurable formatting instead of the default type name. Opt-in option is also available so only the marked properties will be included.
 
 [← Back to overview](../README.md) · [All generators](README.md)
 
@@ -14,13 +14,16 @@ A good `ToString()` makes debugging, logging and test output much easier, but wr
 - Replaces runtime reflection approaches (`typeof(T).GetProperties().Select(...)`) with zero-overhead generated code
 - Automatically stays in sync with the class definition - no manual maintenance required
 - Supports property exclusion for sensitive or verbose fields
+- Supports opt-in mode
 
 ## Attributes
 
 ```csharp
 [GenerateToString(params string[] excludeProperties)]
+[GenerateToString(OptIn = true)]
 [ToStringFormat(string format)]  // per-property
 [ToStringOrder(int order)]       // per-property
+[ToStringInclude()]       // per-property
 ```
 
 **Parameters:**
@@ -31,6 +34,7 @@ A good `ToString()` makes debugging, logging and test output much easier, but wr
 - `Formattable` - When `true`, generates an `IFormattable` implementation so the class participates in composite formatting with custom `IFormatProvider` support (named argument, default: `false`)
 - `NullPlaceholder` - When set, nullable properties with a `null` value render this string instead of an empty string (named argument, default: `null` — empty string behavior). Common values: `"null"`, `"<null>"`
 - `IncludeInherited` - When `true`, public properties from base classes (up to but not including `object`) are also included in the output after the declared properties. The `excludeProperties` list applies to inherited members as well (named argument, default: `false`)
+- `OptIn` - When `true`, only the properties marked with `ToStringInclude` attribute will be included. The `excludeProperties` will be ignored
 
 **Per-Property Formatting:**
 
@@ -68,6 +72,18 @@ public partial class Product
 public partial class User
 {
     public int Id { get; set; }
+    public string Name { get; set; }
+    public string PasswordHash { get; set; }
+    public string InternalNotes { get; set; }
+}
+
+// Using opt-in mode
+[GenerateToString(OptIn = true)]
+public partial class User
+{
+    [ToStringInclude]
+    public int Id { get; set; }
+    [ToStringInclude]
     public string Name { get; set; }
     public string PasswordHash { get; set; }
     public string InternalNotes { get; set; }
@@ -163,6 +179,7 @@ The generator creates a `ToString()` override on the partial class that:
 
 - Includes all public readable properties by default
 - Excludes properties specified in the attribute parameter
+- When the optional parameter `OptIn` is `true` only the marked properties will be included
 - Formats output as `ClassName { Prop1 = val1, Prop2 = val2 }`
 - Returns `ClassName { }` when all properties are excluded
 - For properties decorated with `[ToStringFormat]`, uses the format specifier in the interpolated string (e.g., `{CreatedAt:yyyy-MM-dd}`)
@@ -310,3 +327,10 @@ public partial struct Point
 ```
 
 `record struct` declarations are not targeted, because they already have a compiler-synthesized `ToString()`.
+
+## Diagnostics
+
+| ID           | Severity | Description                                         |
+| ------------ | -------- | --------------------------------------------------- |
+| `BB84SG0041` | Error    | ToString() is already defined                       |
+| `BB84SG0042` | Warning  | When OptIn is true excludeProperties is ignored     |

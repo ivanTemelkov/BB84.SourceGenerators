@@ -57,7 +57,7 @@ public sealed class SnapshotTests
 	{
 		GeneratorDriverRunResult result = GeneratorDriverHarness.Run("namespace TestNamespace { }");
 
-		Assert.HasCount(29, result.Results.Single().GeneratedSources);
+		Assert.HasCount(30, result.Results.Single().GeneratedSources);
 		SnapshotAssert.Match(result, nameof(AttributeSourceGenerator), "All", includeAttributeSources: true);
 	}
 

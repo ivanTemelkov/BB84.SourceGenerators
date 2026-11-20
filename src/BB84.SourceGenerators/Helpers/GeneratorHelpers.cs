@@ -5,6 +5,7 @@
 // LICENSE file in the root directory of this source tree.
 using System.Collections.Immutable;
 
+using BB84.SourceGenerators.Attributes;
 using BB84.SourceGenerators.Extensions;
 using BB84.SourceGenerators.Models;
 
@@ -316,6 +317,8 @@ internal static class GeneratorHelpers
 	/// and sets <see cref="PropertyDescriptor.Order"/> accordingly. Properties with an explicit order are
 	/// sorted first (ascending), followed by unordered properties in declaration order.
 	/// </param>
+	/// <param name="toStringIncludeAttributeName">When not <see langword="null"/> only the properties marked
+	/// with the specified attribute will be selected.</param>
 	/// <param name="includeInherited">
 	/// When <see langword="true"/>, also includes public properties from base types (excluding <see cref="object"/>).
 	/// The <paramref name="excludedProperties"/> set applies to inherited members as well.
@@ -329,6 +332,7 @@ internal static class GeneratorHelpers
 		bool detectCollections = false,
 		string? toStringFormatAttributeName = null,
 		string? toStringOrderAttributeName = null,
+		string? toStringIncludeAttributeName = null,
 		bool includeInherited = false)
 	{
 		ImmutableArray<PropertyDescriptor>.Builder builder = ImmutableArray.CreateBuilder<PropertyDescriptor>();
@@ -338,7 +342,13 @@ internal static class GeneratorHelpers
 			if (propertySymbol.IsWriteOnly)
 				continue;
 
-			if (excludedProperties is not null && excludedProperties.Contains(propertySymbol.Name))
+			// toStringIncludeAttributeName wins over the excluded properties. See diagnostic BB84SG0042
+			if (toStringIncludeAttributeName is not null)
+			{
+				if (!AttributeHelpers.HasAttribute(propertySymbol, toStringIncludeAttributeName))
+					continue;
+			}
+			else if (excludedProperties is not null && excludedProperties.Contains(propertySymbol.Name))
 				continue;
 
 			bool isValueType = propertySymbol.Type.IsValueType

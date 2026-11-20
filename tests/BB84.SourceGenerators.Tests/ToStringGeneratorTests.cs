@@ -601,6 +601,27 @@ public sealed class ToStringGeneratorTests
 		Assert.AreEqual("ToStringFormattableStructModel { Total = 1,5 }", formattable.ToString(null, CultureInfo.GetCultureInfo("de-DE")));
 		Assert.AreEqual(model.ToString(), formattable.ToString(null, null));
 	}
+
+	[TestMethod]
+	public void ToStringShouldReturnOnlySelectedProperties()
+	{
+		OptInToStringTestModel model = new()
+		{
+			Id = 42,
+			Name = "John",
+			Description = "A test model",
+			Price = 19.99,
+			IsActive = true
+		};
+
+		string? result = model.ToString();
+		string expected = $"{nameof(OptInToStringTestModel)} {{ " +
+			$"{nameof(model.Id)} = {model.Id:D3}, " +
+			$"{nameof(model.Name)} = {model.Name}, " +
+			$"{nameof(model.IsActive)} = {model.IsActive} }}";
+
+		Assert.AreEqual(expected, result);
+	}
 }
 
 [GenerateToString]
@@ -819,4 +840,17 @@ public partial record ToStringDerivedRecordModel : ToStringBaseRecordModel
 public partial record ToStringFormattableRecordModel
 {
 	public int Value { get; set; }
+}
+
+[GenerateToString(OptIn = true)]
+public partial class OptInToStringTestModel
+{
+	[ToStringInclude, ToStringOrder(0), ToStringFormat("D3")]
+	public int Id { get; set; }
+	[ToStringInclude, ToStringOrder(1)]
+	public string? Name { get; set; }
+	public string? Description { get; set; }
+	public double Price { get; set; }
+	[ToStringInclude]
+	public bool IsActive { get; set; }
 }
